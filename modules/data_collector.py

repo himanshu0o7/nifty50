@@ -1,0 +1,26 @@
+from smartapi import SmartConnect
+import requests
+
+class DataCollector:
+    def __init__(self, config):
+        self.config = config
+        self.smart = SmartConnect(api_key=config["api_keys"]["angel_one"])
+        self.smart.generateSession(config["api_keys"]["angel_one_client"], "YOUR_PASSWORD", "YOUR_TOTP")
+
+    def get_market_data(self):
+        nifty_data = self.smart.ltpData("NSE", "NIFTY", "26000")
+        return nifty_data
+
+    def get_global_cues(self):
+        # Example: Free API for Dow Futures
+        try:
+            r = requests.get("https://api.example.com/global_cues").json()
+            return r
+        except:
+            return {}
+
+    def get_all_data(self):
+        return {
+            "market": self.get_market_data(),
+            "global": self.get_global_cues()
+        }
