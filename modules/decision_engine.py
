@@ -1,0 +1,31 @@
+import openai
+
+class DecisionEngine:
+    def __init__(self, config):
+        self.config = config
+        openai.api_key = config["api_keys"]["openai"]
+
+    def generate(self, market_data):
+        prompt = f"""
+        You are a highly accurate intraday NIFTY options analyst.
+        Market Data: {market_data}
+
+        Output JSON:
+        {{
+          "Direction": "CALL or PUT",
+          "Entry": price,
+          "SL": price,
+          "Target": price,
+          "Confidence": 0-100,
+          "Reason": "Why taking trade"
+        }}
+        """
+        resp = openai.ChatCompletion.create(
+            model="gpt-5",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.1
+        )
+        try:
+            return eval(resp.choices[0].message["content"])
+        except:
+            return None
