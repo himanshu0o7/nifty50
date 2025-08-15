@@ -1,0 +1,17 @@
+api_keys:
+  angel_one: "YOUR_ANGELONE_API_KEY"
+  angel_one_client: "YOUR_CLIENT_CODE"
+  openai: "YOUR_OPENAI_KEY"
+  telegram_bot: "YOUR_TELEGRAM_BOT_TOKEN"
+  telegram_chat_id: "YOUR_CHAT_ID"
+
+risk:
+  capital: 17000
+  risk_per_trade_pct: 1.5
+  daily_loss_limit_pct: 4
+
+strategy:
+  min_confidence: 85
+  max_open_trades: 2
+  trade_mode: "auto"  # auto/manual
+  scan_interval_sec: 10
