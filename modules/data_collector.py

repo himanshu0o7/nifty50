@@ -1,26 +1,127 @@
-from smartapi import SmartConnect
+import os
+import logging
 import requests
+from smartapi import SmartConnect
+from dotenv import load_dotenv
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 class DataCollector:
-    def __init__(self, config):
-        self.config = config
-        self.smart = SmartConnect(api_key=config["api_keys"]["angel_one"])
-        self.smart.generateSession(config["api_keys"]["angel_one_client"], "YOUR_PASSWORD", "YOUR_TOTP")
+    def __init__(self):
+        """Initialize DataCollector with credentials from environment variables."""
+        load_dotenv()  # Load environment variables from .env file
+        self.api_key = os.getenv("ANGEL_ONE_API_KEY")
+        self.client_id = os.getenv("ANGEL_ONE_CLIENT_ID")
+        self.password = os.getenv("ANGEL_ONE_PASSWORD")
+        self.totp = os.getenv("ANGEL_ONE_TOTP")
+        self.alpha_vantage_key = os.getenv("ALPHA_VANTAGE_API_KEY")
+
+        # Validate environment variables
+        required_keys = [
+            self.api_key, self.client_id, self.password,
+            self.totp, self.alpha_vantage_key
+        ]
+        if not all(required_keys):
+            missing = [
+                k for k, v in [
+                    ("ANGEL_ONE_API_KEY", self.api_key),
+                    ("ANGEL_ONE_CLIENT_ID", self.client_id),
+                    ("ANGEL_ONE_PASSWORD", self.password),
+                    ("ANGEL_ONE_TOTP", self.totp),
+                    ("ALPHA_VANTAGE_API_KEY", self.alpha_vantage_key)
+                ] if not v
+            ]
+            raise ValueError(f"Missing environment variables: {', '.join(missing)}")
+
+        # Initialize SmartConnect
+        try:
+            self.smart = SmartConnect(api_key=self.api_key)
+            self.smart.generateSession(self.client_id, self.password, self.totp)
+            logger.info("Successfully authenticated with Angel One API")
+        except Exception as e:
+            logger.error(f"Failed to authenticate with Angel One: {str(e)}")
+            raise RuntimeError(f"Authentication failed: {str(e)}")
+
+        # Fetch Nifty 50 instrument token dynamically
+        self.nifty_token = self._get_nifty_token()
+
+    def _get_nifty_token(self):
+        """Fetch the instrument token for NIFTY 50 from Angel One's instrument list."""
+        try:
+            # Fetch instrument list (Angel One provides a CSV or API endpoint)
+            instrument_url = "https://margincalculator.angelbroking.com/OpenAPI_File/files/OpenAPIScripMaster.json"
+            response = requests.get(instrument_url)
+            response.raise_for_status()
+            instruments = response.json()
+
+            # Find NIFTY 50 token
+            for instrument in instruments:
+                if (instrument.get("exch_seg") == "NSE" and
+                        instrument.get("symbol").startswith("NIFTY") and
+                        instrument.get("name") == "NIFTY 50"):
+                    logger.info(f"Found NIFTY 50 token: {instrument['token']}")
+                    return instrument["token"]
+
+            raise ValueError("NIFTY 50 not found in instrument list")
+        except Exception as e:
+            logger.error(f"Failed to fetch NIFTY 50 token: {str(e)}")
+            raise RuntimeError(f"Could not fetch NIFTY 50 token: {str(e)}")
 
     def get_market_data(self):
-        nifty_data = self.smart.ltpData("NSE", "NIFTY", "26000")
-        return nifty_data
+        """Fetch Last Traded Price (LTP) data for NIFTY 50."""
+        try:
+            nifty_data = self.smart.ltpData("NSE", "NIFTY 50", self.nifty_token)
+            if not nifty_data.get("data"):
+                raise ValueError("No data returned for NIFTY 50")
+            logger.info(f"Successfully fetched NIFTY 50 LTP: {nifty_data['data'].get('ltp')}")
+            return nifty_data["data"]
+        except Exception as e:
+            logger.error(f"Failed to fetch NIFTY 50 market data: {str(e)}")
+            return {}
 
     def get_global_cues(self):
-        # Example: Free API for Dow Futures
+        """Fetch global market cues (Dow Jones) from Alpha Vantage API."""
         try:
-            r = requests.get("https://api.example.com/global_cues").json()
-            return r
-        except:
+            url = (
+                f"https://www.alphavantage.co/query?"
+                f"function=TIME_SERIES_INTRADAY&symbol=^DJI&interval=5min"
+                f"&apikey={self.alpha_vantage_key}"
+            )
+            response = requests.get(url)
+            response.raise_for_status()
+            data = response.json()
+
+            if "Time Series (5min)" not in data:
+                raise ValueError("Invalid response from Alpha Vantage API")
+            logger.info("Successfully fetched Dow Jones data")
+            return data["Time Series (5min)"]
+        except Exception as e:
+            logger.error(f"Failed to fetch global cues: {str(e)}")
             return {}
 
     def get_all_data(self):
-        return {
-            "market": self.get_market_data(),
-            "global": self.get_global_cues()
-        }
+        """Aggregate NIFTY 50 market data and global cues."""
+        try:
+            data = {
+                "market": self.get_market_data(),
+                "global": self.get_global_cues()
+            }
+            logger.info("Successfully aggregated market and global data")
+            return data
+        except Exception as e:
+            logger.error(f"Failed to aggregate data: {str(e)}")
+            return {"market": {}, "global": {}}
+
+if __name__ == "__main__":
+    # Example usage
+    try:
+        collector = DataCollector()
+        all_data = collector.get_all_data()
+        print("Collected Data:", all_data)
+    except Exception as e:
+        print(f"Error: {str(e)}")
