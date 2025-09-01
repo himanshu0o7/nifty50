@@ -1,0 +1,40 @@
+# Strategy Toggles & Parameters
+universe:
+  indices: ["NIFTY50","BANKNIFTY"]
+  expiry_preference: "weekly_near"
+
+signals:
+  oi_momentum:
+    enabled: true
+    min_oi_delta_5m_pct: 5.0
+    require_volume_confirmation: true
+  cpr_vwap:
+    enabled: true
+    require_above_vwap_for_longs: true
+    avoid_countertrend_first_minutes: 15
+
+confirmations:
+  rsi:
+    enabled: true
+    min_rsi: 48
+    max_rsi: 72
+  supertrend:
+    enabled: true
+    timeframe: "5m"
+  atr_trend:
+    enabled: true
+    timeframe: "5m"
+
+greeks:
+  preferred_delta_range: [0.35, 0.65]
+  iv_ceiling_pctile: 85
+
+execution:
+  primary_broker: "angel_one"      # angel_one | zerodha_kite | upstox
+  allow_market_if_slippage_ok: true
+  max_retries: 1
+
+session:
+  tz: "Asia/Kolkata"
+  start: "09:15"
+  end: "15:30"
