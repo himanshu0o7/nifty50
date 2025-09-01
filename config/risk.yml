@@ -1,0 +1,23 @@
+# Risk & Money Management
+per_trade_risk_pct: 0.02          # 2% of trading capital per trade
+max_daily_loss_pct: 0.03          # halt day at -3%
+max_positions: 1
+halt_on_vol_spike:
+  enabled: true
+  vix_change_pct: 8.0
+time_guards:
+  no_trade_before: "09:20"        # IST
+  no_new_entry_after: "15:10"
+circuit_breakers:
+  exchange_halt_respect: true
+  slippage_limit_pct: 0.6
+cooldowns:
+  after_stop_minutes: 10
+single_side_cap:
+  ce_max_positions: 1
+  pe_max_positions: 1
+tsl:
+  enabled: true
+  mode: "ATR"
+  atr_multiple: 1.5
+  move_to_cost_after_r_multiple: 1.0
